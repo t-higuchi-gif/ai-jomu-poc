@@ -1,14 +1,15 @@
 'use client'
 
 import { useState } from 'react'
-import { generatePersonaPrompt, PersonaInput } from '@/lib/persona'
+import { PersonaInput } from '@/lib/persona'
 
 export default function ConsultPage() {
   const [inputText, setInputText] = useState('')
   const [result, setResult] = useState('')
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
-  // 仮の人格（あとで setup の結果を渡す）
+  // 仮の人格（あとで setup 画面の結果に差し替える）
   const persona: PersonaInput = {
     position: '常務',
     audience: ['部下', '社内関係者'],
@@ -19,28 +20,33 @@ export default function ConsultPage() {
 
   const consult = async () => {
     setLoading(true)
+    setError('')
+    setResult('')
 
-    // ここではまだ AI を呼ばない
-    const personaPrompt = generatePersonaPrompt(persona)
+    try {
+      const res = await fetch('/api/consult', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: inputText,
+          persona,
+        }),
+      })
 
-    const fakeResponse = `
-AI常務です。
+      if (!res.ok) {
+        throw new Error('API error')
+      }
 
-この内容は、伝えたい意図自体は理解できます。
-ただ、「${persona.primaryStance}」というスタンスを
-より前面に出すなら、次のような整理も考えられます。
-
-・相手の立場を一度受け止める
-・結論を急がず、確認の形にする
-
-最終的にどの表現を選ぶかは、
-あなた自身で判断してください。
-    `.trim()
-
-    setTimeout(() => {
-      setResult(fakeResponse)
+      const data = await res.json()
+      setResult(data.reply)
+    } catch (e) {
+      console.error(e)
+      setError('AI常務との通信でエラーが発生しました')
+    } finally {
       setLoading(false)
-    }, 800)
+    }
   }
 
   return (
@@ -67,6 +73,12 @@ AI常務です。
         {loading ? '相談中…' : 'AI常務に相談する'}
       </button>
 
+      {error && (
+        <p style={{ color: 'red', marginTop: 12 }}>
+          {error}
+        </p>
+      )}
+
       {result && (
         <>
           <hr />
@@ -85,4 +97,3 @@ AI常務です。
     </div>
   )
 }
-
